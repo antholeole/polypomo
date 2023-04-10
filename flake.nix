@@ -1,34 +1,24 @@
 {
-  description = "Python shell flake";
+  description = "a polybar pomodoro widget";
 
-  inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    flake-utils.url = "github:numtide/flake-utils";
+  inputs.nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+  inputs.utils.url = "github:numtide/flake-utils";
 
-    mach-nix.url = "github:davhau/mach-nix";
-  };
-
-  outputs = { self, nixpkgs, mach-nix, flake-utils, ... }:
-    let
-      pythonVersion = "python39";
-    in
-    flake-utils.lib.eachDefaultSystem (system:
+  outputs = { self, nixpkgs, utils }: 
+    utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
-        mach = mach-nix.lib.${system};
-
-        pythonEnv = mach.mkPython {
-          python = pythonVersion;
-        };
-      in
-      {
-        devShells.default = pkgs.mkShellNoCC {
-          packages = [ pythonEnv ];
-
-          shellHook = ''
-            export PYTHONPATH="${pythonEnv}/bin/python"
-          '';
-        };
+      in {
+        packages = {
+          default = pkgs.stdenv.mkDerivation {
+            name = "polypomo";
+            propagatedBuildInputs = [
+              pkgs.python3_11
+            ];
+            dontUnpack = true;
+            installPhase = "install -Dm755 ${./polypomo.py} $out/bin/polypomo";
+          };
+        }; 
       }
-    );
+  );
 }
