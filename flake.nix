@@ -13,7 +13,7 @@
               final.python311
             ];
             dontUnpack = true;
-            src = ./polypomo;
+            installPhase = "install -Dm755 ${./polypomo} $out/bin/polypomo";
         };
     };
   };
