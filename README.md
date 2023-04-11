@@ -58,7 +58,7 @@ polypomo makes use of `notify-send` to send a notification when the timer reache
 
 ## Screenshots
 
-![pomodoro timer](https://raw.githubusercontent.com/unode/polypomo/master/imgs/tomato-timer.png)  
+![pomodoro timer](https://raw.githubusercontent.com/unode/polypomo/master/imgs/TIMER-timer.png)  
 ![break timer](https://raw.githubusercontent.com/unode/polypomo/master/imgs/break-timer.png)
 
 ## License

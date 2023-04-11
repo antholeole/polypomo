@@ -16,10 +16,9 @@ import pathlib
 
 SOCKDIR = os.environ.get("XDG_RUNTIME_DIR", "/var/tmp")
 SOCKFILE = os.path.join(SOCKDIR, "polypomo.sock")
-TOMATO = "\U0001F345"  # Recommended font: Noto Emoji
-BREAK = "\U0001F3D6"  # Recommended font: Noto Emoji
-PAUSE = "\U000023F8"  # Recommended font: Siji
-
+TIMER = "󱑆"
+BREAK = "󰒲"
+PAUSE = "" 
 
 class Exit(Exception):
     pass
@@ -109,7 +108,7 @@ class Status:
         self.saveto = saveto
 
     def show(self):
-        status = TOMATO if self.status == "work" else BREAK
+        status = TIMER if self.status == "work" else BREAK
         if not self.active:
             status = PAUSE
         sys.stdout.write("{} {}\n".format(status, self.timer))
