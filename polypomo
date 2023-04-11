@@ -111,7 +111,7 @@ class Status:
         status = TIMER if self.status == "work" else BREAK
         if not self.active:
             status = PAUSE
-        sys.stdout.write("{} {}\n".format(status, self.timer))
+        sys.stdout.write(" {} {}\n".format(status, self.timer))
         sys.stdout.flush()
 
     def toggle(self):
