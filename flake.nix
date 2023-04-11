@@ -10,7 +10,7 @@
         polypomo = final.stdenv.mkDerivation {
             name = "polypomo";
             propagatedBuildInputs = [
-              final.python3_11
+              final.python311
             ];
             dontUnpack = true;
             installPhase = "install -Dm755 ${./polypomo} $out/bin/polypomo";
