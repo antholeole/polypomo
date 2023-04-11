@@ -7,7 +7,7 @@
 
   outputs = { self, nixpkgs }: {
     overlay = final: prev: {
-        polypomo = final.mkDerivation {
+        polypomo = final.stdenv.mkDerivation {
             name = "polypomo";
             propagatedBuildInputs = [
               final.python3_11
@@ -15,6 +15,6 @@
             dontUnpack = true;
             installPhase = "install -Dm755 ${./polypomo.py} $out/bin/polypomo";
         };
-  };
+    };
   };
 }
