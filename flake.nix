@@ -13,7 +13,7 @@
               final.python3_11
             ];
             dontUnpack = true;
-            installPhase = "install -Dm755 ${./polypomo.py} $out/bin/polypomo";
+            installPhase = "install -Dm755 ${./polypomo} $out/bin/polypomo";
         };
     };
   };
