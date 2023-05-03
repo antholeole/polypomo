@@ -5,13 +5,15 @@ mod cli;
 use clap::Parser;
 
 use cli::{Invocation, Commands};
+use server::PolypomoServer;
 
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let args = Invocation::parse();
 
     match args.command {
-        Commands::Run(runArgs) => println!("hi"),
+        Commands::Run(runArgs) => PolypomoServer::new(runArgs),
     };
 
     println!("Hello, world!");

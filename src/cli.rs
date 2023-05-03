@@ -18,14 +18,29 @@ pub enum Commands {
 #[command(author, version, about)]
 pub struct RunArgs {
     #[arg(short, long, default_value_t = 1)]
-    puid: u8,
+    pub puid: u8,
 
     #[arg(long, default_value = "󰒲")]
-    sleeping_icon: String,
+    pub sleeping_icon: String,
 
     #[arg(long, default_value = "󰱠")]
-    working_icon: String,
+    pub working_icon: String,
 
     #[arg(long, default_value = "")]
-    paused_icon: String,
+    pub paused_icon: String,
+
+    #[arg(long, default_value_t = 60 * 5)]
+    pub rest_period: u16,
+
+    #[arg(long, default_value_t = 60 * 25)]
+    pub work_period: u16,
+
+    #[arg(long, default_value_t = 60 * 30)]
+    pub break_period: u16,
+
+    #[arg(long, default_value_t = 4)]
+    pub cycles: u16,
+
+    #[arg(long, default_value_t = 0.75)]
+    pub refresh_rate: f32, 
 }

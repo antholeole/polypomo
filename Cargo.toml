@@ -9,3 +9,4 @@ edition = "2021"
 chrono = "0.4.24"
 clap = { version = "4.2.4", features = ["derive"] }
 interprocess = "1.2.1"
+tokio = { version = "1", features = ["full"] }
