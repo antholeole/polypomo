@@ -23,14 +23,14 @@
           src = ./.;
         };
 
-        overlay = final: prev: {
-          "${cargoToml.package.name}" = final.callPackage ./. { inherit naersk; };
-        };
-
         devShell = pkgs.mkShell {
           nativeBuildInputs = with pkgs; [ rustc cargo ];
         };
       }
-    );
+    ) // {
+        overlay = final: prev: {
+            "${cargoToml.package.name}" = final.callPackage ./. { inherit naersk; };
+      };
+    };
 }
 
