@@ -8,7 +8,9 @@
   };
 
   outputs = { self, flake-utils, naersk, nixpkgs }:
-    flake-utils.lib.eachDefaultSystem (system:
+  let 
+    cargoToml = (builtins.fromTOML (builtins.readFile ./Cargo.toml));
+  in flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = (import nixpkgs) {
           inherit system;
@@ -19,6 +21,10 @@
       in rec {
         defaultPackage = naersk'.buildPackage {
           src = ./.;
+        };
+
+        overlay = final: prev: {
+          "${cargoToml.package.name}" = final.callPackage ./. { inherit naersk; };
         };
 
         devShell = pkgs.mkShell {
