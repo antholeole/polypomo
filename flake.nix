@@ -29,7 +29,7 @@
       }
     ) // {
         overlay = final: prev: {
-            "${cargoToml.package.name}" = final.callPackage ./. { inherit naersk; };
+            "${cargoToml.package.name}" = final.callPackage ./.;
       };
     };
 }
