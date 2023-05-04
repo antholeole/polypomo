@@ -8,39 +8,48 @@ pub struct Invocation {
     pub command: Commands,
 }
 
+const POLYDORO_SOCKET_NAME: &str = "polydoro";
+
 #[derive(Subcommand)]
 pub enum Commands {
     /// Run polydomo.
     Run(RunArgs),
+
+    Toggle {
+        #[arg(short, long, default_value = POLYDORO_SOCKET_NAME)]
+        puid: String,
+    },
 }
 
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
 pub struct RunArgs {
-    #[arg(short, long, default_value_t = 1)]
-    pub puid: u8,
+    #[arg(short, long, default_value = POLYDORO_SOCKET_NAME)]
+    pub puid: String,
 
-    #[arg(long, default_value = "󰒲")]
+    #[arg(long, default_value = "󰒲 ")]
     pub sleeping_icon: String,
 
-    #[arg(long, default_value = "󰱠")]
+    #[arg(long, default_value = "󰱠 ")]
     pub working_icon: String,
 
-    #[arg(long, default_value = "")]
+    #[arg(long, default_value = " ")]
     pub paused_icon: String,
 
     #[arg(long, default_value_t = 60 * 5)]
-    pub rest_period: u16,
+    pub rest_period_s: u16,
 
     #[arg(long, default_value_t = 60 * 25)]
-    pub work_period: u16,
+    pub work_period_s: u16,
 
     #[arg(long, default_value_t = 60 * 30)]
-    pub break_period: u16,
+    pub break_period_s: u16,
 
+    /// how many cycles before a long break. Defaults to four 
+    /// (so breaks are: 5, 5, 5, 5, 25)
     #[arg(long, default_value_t = 4)]
     pub cycles: u16,
 
-    #[arg(long, default_value_t = 0.75)]
-    pub refresh_rate: f32, 
+    #[arg(long, default_value_t = 750)]
+    pub refresh_rate_ms: u64, 
 }

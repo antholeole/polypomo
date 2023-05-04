@@ -6,15 +6,16 @@ use clap::Parser;
 
 use cli::{Invocation, Commands};
 use server::PolypomoServer;
+use client::{send_polydoro_message, OpCode};
 
-
-#[tokio::main]
-async fn main() {
+fn main() {
     let args = Invocation::parse();
 
     match args.command {
-        Commands::Run(runArgs) => PolypomoServer::new(runArgs),
+        Commands::Toggle { puid } => send_polydoro_message(puid, OpCode::Toggle),
+        Commands::Run(runArgs) => PolypomoServer::new(runArgs)
+        .run()
+        .join()
+        .expect("Polypomo server crashed."),
     };
-
-    println!("Hello, world!");
 }

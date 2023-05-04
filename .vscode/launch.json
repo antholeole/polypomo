@@ -1,0 +1,17 @@
+{
+    "configurations": [
+        {
+            "name": "Launch an application",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "run",
+                    "--",
+                    "run"
+                ]
+            },
+            "cwd": "${workspaceRoot}",
+        }
+    ]
+}
