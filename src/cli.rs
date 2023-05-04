@@ -19,6 +19,11 @@ pub enum Commands {
         #[arg(short, long, default_value = POLYDORO_SOCKET_NAME)]
         puid: String,
     },
+
+    Skip {
+        #[arg(short, long, default_value = POLYDORO_SOCKET_NAME)]
+        puid: String,
+    }
 }
 
 #[derive(Parser, Debug)]

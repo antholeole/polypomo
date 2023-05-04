@@ -12,8 +12,9 @@ fn main() {
     let args = Invocation::parse();
 
     match args.command {
+        Commands::Skip { puid } => send_polydoro_message(puid, OpCode::Skip),
         Commands::Toggle { puid } => send_polydoro_message(puid, OpCode::Toggle),
-        Commands::Run(runArgs) => PolypomoServer::new(runArgs)
+        Commands::Run(run_args) => PolypomoServer::new(run_args)
         .run()
         .join()
         .expect("Polypomo server crashed."),

@@ -32,7 +32,7 @@ impl PolypomoServer {
         PolypomoServer {
             args,
             current_period: PeriodType::Work,
-            clock: PausableClock::default(),            
+            clock: PausableClock::new(Duration::ZERO, false),            
             cycles: 0,
         }
     }
@@ -126,8 +126,8 @@ impl PolypomoServer {
     }
 
     fn change_state(&mut self) {
-        self.cycles += 1;
         let period_type = if self.current_period != PeriodType::Work {
+            self.cycles += 1;
             PeriodType::Work
         } else if self.cycles >= self.args.cycles {
             self.cycles = 0;
@@ -136,7 +136,8 @@ impl PolypomoServer {
             PeriodType::Rest
         };
 
-        self.clock = PausableClock::default();
+        // paused = false feels wrong but gets the correct behavior.
+        self.clock = PausableClock::new(Duration::ZERO, false);
         self.current_period = period_type;
     }
 
@@ -152,7 +153,8 @@ impl PolypomoServer {
 
 impl Display for PolypomoServer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let symbol = if self.clock.is_paused() {
+        // paused seems to be inverted in this package.
+        let symbol = if !self.clock.is_paused() {
             &self.args.paused_icon
         } else if self.current_period == PeriodType::Work {
             &self.args.working_icon
