@@ -1,5 +1,6 @@
 [package]
 name = "polypomo"
+description = "A simple polydoro timer for polybar"
 version = "0.1.0"
 edition = "2021"
 
