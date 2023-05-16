@@ -7,21 +7,24 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
   };
 
-  outputs = { self, flake-utils, naersk, nixpkgs }: 
-  let 
-    pkgName = (builtins.fromTOML (builtins.readFile ./Cargo.toml)).package.name;
-  in flake-utils.lib.simpleFlake {
-    inherit self nixpkgs;
-    name = pkgName;
+  outputs = { self, flake-utils, naersk, nixpkgs }:
+    let
+      pkgName = (builtins.fromTOML (builtins.readFile ./Cargo.toml)).package.name;
+    in
+    flake-utils.lib.simpleFlake
+      {
+        inherit self nixpkgs;
+        name = pkgName;
 
-    shell = { pkgs, ... }: pkgs.mkShell {
-      nativeBuildInputs = with pkgs; [ rustc cargo ];
-    };
-    overlay = final: prev: {
-      pkgName = naersk.buildPackage {
-        src = ./.;
+        shell = { pkgs, ... }: pkgs.mkShell {
+          nativeBuildInputs = with pkgs; [ rustc cargo ];
+        };
+      } // {
+      overlay.default = final: prev: {
+        "${pkgName}" = naersk.buildPackage {
+          src = ./.;
+        };
       };
     };
-  };
 }
 
