@@ -22,7 +22,7 @@
       in rec {
         inherit defaultPackage;
 
-        overlays."${system}" = final: prev: { 
+        overlay.default = final: prev: { 
           polydoro = defaultPackage;
         };
 
