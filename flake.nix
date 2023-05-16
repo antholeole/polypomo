@@ -10,6 +10,7 @@
   outputs = { self, flake-utils, naersk, nixpkgs }:
     let
       pkgName = (builtins.fromTOML (builtins.readFile ./Cargo.toml)).package.name;
+      naersk' = nixpkgs.callPackage naersk { };
     in
     flake-utils.lib.simpleFlake
       {
@@ -21,7 +22,7 @@
         };
       } // {
       overlay.default = final: prev: {
-        "${pkgName}" = naersk.buildPackage {
+        "${pkgName}" = naersk'.buildPackage {
           src = ./.;
         };
       };
