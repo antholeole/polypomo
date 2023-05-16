@@ -8,24 +8,25 @@
   };
 
   outputs = { self, flake-utils, naersk, nixpkgs }:
-    let
-      pkgName = (builtins.fromTOML (builtins.readFile ./Cargo.toml)).package.name;
-      naersk' = nixpkgs.callPackage naersk { };
-    in
-    flake-utils.lib.simpleFlake
-      {
-        inherit self nixpkgs;
-        name = pkgName;
-
-        shell = { pkgs, ... }: pkgs.mkShell {
-          nativeBuildInputs = with pkgs; [ rustc cargo ];
+    flake-utils.lib.eachDefaultSystem (system:
+      let
+        pkgs = (import nixpkgs) {
+          inherit system;
         };
-      } // {
-      overlay.default = final: prev: {
-        "${pkgName}" = naersk'.buildPackage {
+
+        naersk' = pkgs.callPackage naersk {};
+        
+        defaultPackage = naersk'.buildPackage {
           src = ./.;
         };
-      };
-    };
-}
+      in rec {
+        inherit defaultPackage;
 
+        overlays."${system}" = defaultPackage;
+
+        devShell = pkgs.mkShell {
+          nativeBuildInputs = with pkgs; [ rustc cargo ];
+        };
+      }
+    );
+}
