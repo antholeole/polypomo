@@ -22,7 +22,9 @@
       in rec {
         inherit defaultPackage;
 
-        overlays."${system}" = defaultPackage;
+        overlays."${system}" = final: prev: { 
+          polydoro = defaultPackage;
+        };
 
         devShell = pkgs.mkShell {
           nativeBuildInputs = with pkgs; [ rustc cargo ];
