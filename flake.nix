@@ -1,34 +1,20 @@
 {
-  description = "a polybar pomodoro widget";
-
+  description = "Foo Bar";
   inputs = {
-    flake-utils.url = "github:numtide/flake-utils";
-    naersk.url = "github:nix-community/naersk";
-    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
   };
-
-  outputs = { self, flake-utils, naersk, nixpkgs }:
-    flake-utils.lib.eachDefaultSystem (system:
-      let
-        pkgs = (import nixpkgs) {
-          inherit system;
+  outputs = { self, nixpkgs }:
+    let
+      manifest = (nixpkgs.lib.importTOML ./Cargo.toml).package;
+    in
+    {
+      overlays.default = {
+        polydoro = nixpkgs.rustPlatform.buildRustPackage rec {
+          pname = manifest.name;
+          version = manifest.version;
+          cargoLock.lockFile = ./Cargo.lock;
+          src = nixpkgs.lib.cleanSource ./.;
         };
-
-        naersk' = pkgs.callPackage naersk {};
-        
-        defaultPackage = naersk'.buildPackage {
-          src = ./.;
-        };
-      in rec {
-        inherit defaultPackage;
-
-        overlay.default = final: prev: { 
-          polydoro = defaultPackage;
-        };
-
-        devShell = pkgs.mkShell {
-          nativeBuildInputs = with pkgs; [ rustc cargo ];
-        };
-      }
-    );
+      };
+    };
 }
