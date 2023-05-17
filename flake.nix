@@ -1,6 +1,4 @@
 {
-  description = "a polybar pomodoro widget";
-
   inputs = {
     flake-utils.url = "github:numtide/flake-utils";
     naersk.url = "github:nix-community/naersk";
@@ -8,19 +6,27 @@
   };
 
   outputs = { self, flake-utils, naersk, nixpkgs }:
-    flake-utils.lib.eachDefaultSystem
-      (system:
-        let
-          pkgs = nixpkgs.legacyPackages.${system};
-        in
-        {
-          devShells.default = pkgs.mkShell {
-            name = "polydoro";
-            packages = with pkgs; [
-              rustup
-            ];
-          };
-        }) // {
-      overlay = import ./overlay.nix;
-    };
+    flake-utils.lib.eachDefaultSystem (system:
+      let
+        pkgs = (import nixpkgs) {
+          inherit system;
+        };
+
+        naersk' = pkgs.callPackage naersk {};
+
+        defaultPackage = naersk'.buildPackage {
+          src = ./.;
+        };
+      in rec {
+        inherit defaultPackage;
+
+        devShell = pkgs.mkShell {
+          nativeBuildInputs = with pkgs; [ rustc cargo ];
+        };
+
+        overlay = final: prev: {
+          polydoro = defaultPackage;
+        };
+      }
+    );
 }
