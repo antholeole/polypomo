@@ -24,8 +24,8 @@
           nativeBuildInputs = with pkgs; [ rustc cargo ];
         };
 
-        overlay = final: prev: {
-          polydoro = defaultPackage;
+        overlays.default = final: prev: {
+          polydoro = defaultPackage."${prev.system}";
         };
       }
     );
