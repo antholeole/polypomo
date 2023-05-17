@@ -31,12 +31,16 @@ pub struct PolydoroServer {
 impl PolydoroServer {
     pub fn new(args: RunArgs) -> PolydoroServer {
         PolydoroServer {
-            socket_name: format!("/tmp/{}", args.puid.clone()),
+            socket_name: PolydoroServer::build_socket_path(&args.puid),
             args,
             current_period: PeriodType::Work,
             clock: PausableClock::new(Duration::ZERO, false),            
             cycles: 0,
         }
+    }
+
+    pub fn build_socket_path(puid: &str) -> String {
+        format!("/tmp/{}", puid)
     }
 
     pub fn run(self) -> JoinHandle<()> {    

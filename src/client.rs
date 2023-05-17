@@ -2,6 +2,8 @@ use std::io::Write;
 
 use interprocess::local_socket::LocalSocketStream;
 
+use crate::server::PolydoroServer;
+
 #[repr(u8)]
 pub enum OpCode {
     Toggle = 0,
@@ -18,7 +20,9 @@ pub fn opcode_from_byte(byte: u8) -> OpCode {
 }
 
 pub fn send_polydoro_message(polydoro_puid: String, opcode: OpCode) {
-    let mut stream = LocalSocketStream::connect(polydoro_puid).unwrap();
+    let socket = PolydoroServer::build_socket_path(&polydoro_puid);
+
+    let mut stream = LocalSocketStream::connect(socket).unwrap();
     let buf: [u8; 1] = [opcode as u8]; 
     stream.write(&buf).unwrap();
 }
