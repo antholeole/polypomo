@@ -1,20 +1,26 @@
 {
-  description = "Foo Bar";
+  description = "a polybar pomodoro widget";
+
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    flake-utils.url = "github:numtide/flake-utils";
+    naersk.url = "github:nix-community/naersk";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
   };
-  outputs = { self, nixpkgs }:
-    let
-      manifest = (nixpkgs.lib.importTOML ./Cargo.toml).package;
-    in
-    {
-      overlays.default = {
-        polydoro = nixpkgs.rustPlatform.buildRustPackage rec {
-          pname = manifest.name;
-          version = manifest.version;
-          cargoLock.lockFile = ./Cargo.lock;
-          src = nixpkgs.lib.cleanSource ./.;
-        };
-      };
+
+  outputs = { self, flake-utils, naersk, nixpkgs }:
+    flake-utils.lib.eachDefaultSystem
+      (system:
+        let
+          pkgs = nixpkgs.legacyPackages.${system};
+        in
+        {
+          devShells.default = pkgs.mkShell {
+            name = "polydoro";
+            packages = with pkgs; [
+              rustup
+            ];
+          };
+        }) // {
+      overlay = import ./overlay.nix;
     };
 }
