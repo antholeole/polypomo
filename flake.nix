@@ -27,7 +27,7 @@
       }
     ) // {
       overlays.default = final: prev: {
-        polydoro = (builtins.getFlake ./flake.nix).defaultPackage."${prev.system}";
+        polydoro = (builtins.getFlake "path:./.").defaultPackage."${prev.system}";
       };
     };
 }
