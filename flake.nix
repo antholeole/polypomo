@@ -1,49 +1,31 @@
 {
-  description = "A Pomodoro widget for Polybar.";
-
   inputs = {
     flake-utils.url = "github:numtide/flake-utils";
-    naersk.url = "github:nix-community/naersk";
-    
-    nixpkgs-mozilla = {
-      url = "github:mozilla/nixpkgs-mozilla";
-      flake = false;
+    nixpkgs.url = "nixpkgs/nixos-unstable";
+    fenix = {
+      url = "github:nix-community/fenix";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
   };
 
-  outputs = { self, flake-utils, naersk, nixpkgs, nixpkgs-mozilla }:
+  outputs = { self, fenix, flake-utils, nixpkgs }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = (import nixpkgs) {
           inherit system;
-
-          overlays = [
-            (import nixpkgs-mozilla)
-          ];
         };
 
-        toolchain = (pkgs.rustChannelOf {
-          rustToolchain = ./rust-toolchain;
-          sha256 = "";
-          #        ^ After you run `nix build`, replace this with the actual
-          #          hash from the error message
-        }).rust;
+        manifest = (pkgs.lib.importTOML ./Cargo.toml).package;
+      in
 
-        naersk' = pkgs.callPackage naersk {
-          cargo = toolchain;
-          rustc = toolchain;
+      {
+        defaultPackage = (pkgs.makeRustPlatform {
+          inherit (fenix.packages.${system}.minimal) cargo rustc;
+        }).buildRustPackage {
+          pname = manifest.name;
+          version = manifest.version;
+          cargoLock.lockFile = ./Cargo.lock;
+          src = pkgs.lib.cleanSource ./.;
         };
-        
-      in rec {
-        # For `nix build` & `nix run`:
-        defaultPackage = naersk'.buildPackage {
-          src = ./.;
-        };
-
-        # For `nix develop` (optional, can be skipped):
-        devShell = pkgs.mkShell {
-          nativeBuildInputs = [ toolchain ];
-        };
-      }
-    );
+      });
 }
