@@ -8,26 +8,22 @@
   };
 
   outputs = { self, flake-utils, naersk, nixpkgs }:
-    flake-utils.lib.eachDefaultSystem (system:
-      let
-        pkgs = (import nixpkgs) {
-          inherit system;
-        };
+    let
+      outputsBySystem = flake-utils.lib.eachDefaultSystem (system:
+        let
+          pkgs = (import nixpkgs) {
+            inherit system;
+          };
 
-        naersk' = pkgs.callPackage naersk {};
-        
-      in rec {
-        defaultPackage = naersk'.buildPackage {
+          naersk' = pkgs.callPackage naersk { };
+        in
+        naersk'.buildPackage {
           src = ./.;
-        };
-
-        devShell = pkgs.mkShell {
-          nativeBuildInputs = with pkgs; [ rustc cargo ];
-        };
-      }
-    ) // {
+        });
+    in
+    {
       overlays.default = final: prev: {
-        polydoro = (builtins.getFlake "path:./.").defaultPackage."${prev.system}";
+        polydoro = outputsBySystem."${prev.system}";
       };
     };
 }
