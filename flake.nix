@@ -25,7 +25,7 @@
         };
 
         overlays.default = final: prev: {
-          polydoro = defaultPackage."${prev.system}";
+          polydoro = defaultPackage.BLAH;#"${prev.system}";
         };
       }
     );
