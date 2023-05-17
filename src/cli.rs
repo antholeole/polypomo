@@ -32,13 +32,13 @@ pub struct RunArgs {
     #[arg(short, long, default_value = POLYDORO_SOCKET_NAME)]
     pub puid: String,
 
-    #[arg(long, default_value = "󰒲 ")]
+    #[arg(long, default_value = " 󰒲 ")]
     pub sleeping_icon: String,
 
-    #[arg(long, default_value = "󰱠 ")]
+    #[arg(long, default_value = " 󰱠 ")]
     pub working_icon: String,
 
-    #[arg(long, default_value = " ")]
+    #[arg(long, default_value = "  ")]
     pub paused_icon: String,
 
     #[arg(long, default_value_t = 60 * 5)]
