@@ -1,4 +1,6 @@
 {
+  description = "A Pomodoro widget for Polybar.";
+
   inputs = {
     flake-utils.url = "github:numtide/flake-utils";
     naersk.url = "github:nix-community/naersk";
@@ -13,20 +15,19 @@
         };
 
         naersk' = pkgs.callPackage naersk {};
-
+        
+      in rec {
         defaultPackage = naersk'.buildPackage {
           src = ./.;
         };
-      in rec {
-        inherit defaultPackage;
 
         devShell = pkgs.mkShell {
           nativeBuildInputs = with pkgs; [ rustc cargo ];
         };
-
-        overlays.default = final: prev: {
-          polydoro = defaultPackage.BLAH;#"${prev.system}";
-        };
       }
-    );
+    ) // {
+      overlays.default = final: prev: {
+        polydoro = (builtins.getFlake ./.).defaultPackage."${prev.system}";
+      };
+    };
 }
