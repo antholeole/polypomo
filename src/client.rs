@@ -17,8 +17,8 @@ pub fn opcode_from_byte(byte: u8) -> OpCode {
     }
 }
 
-pub fn send_polydoro_message(polypomo_puid: String, opcode: OpCode) {
-    let mut stream = LocalSocketStream::connect(polypomo_puid).unwrap();
+pub fn send_polydoro_message(polydoro_puid: String, opcode: OpCode) {
+    let mut stream = LocalSocketStream::connect(polydoro_puid).unwrap();
     let buf: [u8; 1] = [opcode as u8]; 
     stream.write(&buf).unwrap();
 }

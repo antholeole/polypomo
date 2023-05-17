@@ -17,6 +17,6 @@ fn main() {
         Commands::Run(run_args) => PolydoroServer::new(run_args)
         .run()
         .join()
-        .expect("Polypomo server crashed."),
+        .expect("polydoro server crashed."),
     };
 }

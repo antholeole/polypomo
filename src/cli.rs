@@ -12,7 +12,7 @@ const POLYDORO_SOCKET_NAME: &str = "polydoro";
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// Run polydomo.
+    /// Run polydoro.
     Run(RunArgs),
 
     Toggle {

@@ -23,6 +23,7 @@ pub struct PolydoroServer {
     args: RunArgs,
     cycles: u16,
     clock: PausableClock,
+    socket_name: String,
     current_period: PeriodType,
 } 
 
@@ -30,6 +31,7 @@ pub struct PolydoroServer {
 impl PolydoroServer {
     pub fn new(args: RunArgs) -> PolydoroServer {
         PolydoroServer {
+            socket_name: format!("/tmp/{}", args.puid.clone()),
             args,
             current_period: PeriodType::Work,
             clock: PausableClock::new(Duration::ZERO, false),            
@@ -39,8 +41,10 @@ impl PolydoroServer {
 
     pub fn run(self) -> JoinHandle<()> {    
         let poll_time = Duration::from_millis(self.args.refresh_rate_ms);
+        let socket_name = self.socket_name.clone();
+
         let local_socket = LocalSocketListener::bind(
-            self.args.puid.clone()
+            format!("/tmp/{}", self.args.puid.clone())
         ).unwrap();
         
         let rw_self = Arc::new(RwLock::new(self));
@@ -54,8 +58,10 @@ impl PolydoroServer {
         let display_should_loop = should_loop.clone();
 
 
-        ctrlc::set_handler(move || *should_loop.write().unwrap() = false
-        ).expect("Error setting Ctrl-C handler");
+        ctrlc::set_handler(move ||{
+            let _ = std::fs::remove_file(socket_name.clone());
+            *should_loop.write().unwrap() = false;
+        }).expect("Error setting Ctrl-C handler");
         
 
         let _listener_thread = thread::spawn(move || {
