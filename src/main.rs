@@ -5,7 +5,7 @@ mod cli;
 use clap::Parser;
 
 use cli::{Invocation, Commands};
-use server::PolypomoServer;
+use server::PolydoroServer;
 use client::{send_polydoro_message, OpCode};
 
 fn main() {
@@ -14,7 +14,7 @@ fn main() {
     match args.command {
         Commands::Skip { puid } => send_polydoro_message(puid, OpCode::Skip),
         Commands::Toggle { puid } => send_polydoro_message(puid, OpCode::Toggle),
-        Commands::Run(run_args) => PolypomoServer::new(run_args)
+        Commands::Run(run_args) => PolydoroServer::new(run_args)
         .run()
         .join()
         .expect("Polypomo server crashed."),

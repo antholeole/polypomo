@@ -19,7 +19,7 @@ enum PeriodType {
     Break
 }
 
-pub struct PolypomoServer {
+pub struct PolydoroServer {
     args: RunArgs,
     cycles: u16,
     clock: PausableClock,
@@ -27,9 +27,9 @@ pub struct PolypomoServer {
 } 
 
 
-impl PolypomoServer {
-    pub fn new(args: RunArgs) -> PolypomoServer {
-        PolypomoServer {
+impl PolydoroServer {
+    pub fn new(args: RunArgs) -> PolydoroServer {
+        PolydoroServer {
             args,
             current_period: PeriodType::Work,
             clock: PausableClock::new(Duration::ZERO, false),            
@@ -151,7 +151,7 @@ impl PolypomoServer {
 }
 
 
-impl Display for PolypomoServer {
+impl Display for PolydoroServer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // paused seems to be inverted in this package.
         let symbol = if !self.clock.is_paused() {
