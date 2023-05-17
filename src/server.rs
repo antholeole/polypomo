@@ -21,7 +21,7 @@ enum PeriodType {
 
 pub struct PolydoroServer {
     args: RunArgs,
-    cycles: u16,
+    cycles: i8,
     clock: PausableClock,
     socket_name: String,
     current_period: PeriodType,
@@ -140,7 +140,7 @@ impl PolydoroServer {
             self.cycles += 1;
             PeriodType::Work
         } else if self.cycles >= self.args.cycles {
-            self.cycles = 0;
+            self.cycles = -1;
             PeriodType::Break
         } else {
             PeriodType::Rest

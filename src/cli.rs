@@ -53,7 +53,7 @@ pub struct RunArgs {
     /// how many cycles before a long break. Defaults to four 
     /// (so breaks are: 5, 5, 5, 5, 25)
     #[arg(long, default_value_t = 4)]
-    pub cycles: u16,
+    pub cycles: i8,
 
     #[arg(long, default_value_t = 750)]
     pub refresh_rate_ms: u64, 
