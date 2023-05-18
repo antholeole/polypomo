@@ -1,3 +1,7 @@
+use std::fmt;
+
+use notify_rust::Notification;
+
 use {
     std::{time::{Duration, Instant}, fmt::Display, sync::Arc},
     futures::{io::BufReader, AsyncReadExt},
@@ -11,11 +15,17 @@ use {
     crate::client::{OpCode, opcode_from_byte}
 };
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug, Clone)]
 enum PeriodType {
     Rest,
     Work,
     Break
+}
+
+impl fmt::Display for PeriodType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }
 
 pub struct PolydoroServer {
@@ -92,10 +102,10 @@ impl PolydoroServer {
                     });
 
                     match opcode_from_byte(buf[0]) {
-                        Ok(OpCode::Skip) => this.write().await.change_state(),
+                        Ok(OpCode::Skip) => this.write().await.change_state(true)?,
                         Ok(OpCode::Toggle) => this.write().await.toggle_pause(),
                         Err(e) => return Err::<(), Error>(e),
-                }
+                };
             }
         };
         
@@ -122,43 +132,52 @@ impl PolydoroServer {
     ) -> Result<()> { 
         let poll_time = Duration::from_millis(this.read().await.args.refresh_rate_ms);
 
+        let drive = async { 
+            debug!("Beginning tick loop...");
+
+            loop {
+                let start = Instant::now();
+                let runtime = start.elapsed();
+
+                if let Some(remaining) = poll_time.checked_sub(runtime) {
+                    sleep(remaining).await;
+                }
+
+                if let Err(e) = this.write().await.tick() {
+                    return e;
+                }
+                
+                println!("{}", this.read().await);
+            };
+        };
 
         Ok(tokio::select! {
             // nothing to cleanup
             _ = subsys.on_shutdown_requested() => {
                 debug!("Tick loop shutting down.");
             },
-            _ = async { 
-                debug!("Beginning tick loop...");
-
-                loop {
-                    let start = Instant::now();
-                    let runtime = start.elapsed();
-
-                    if let Some(remaining) = poll_time.checked_sub(runtime) {
-                        sleep(remaining).await;
-                    }
-    
-                    this.write().await.tick();
-                    println!("{}", this.read().await);
-                };
-            } => {},
+            _ = drive => {},
         }) 
     }
 
-    pub fn tick(&mut self) {
-        if self.clock.is_paused() {
-            return;
+    pub fn tick(&mut self) -> Result<()> {
+        // Again, seems like the pkg we used is broken. This is 
+        // the intended behavior yet the boolean seems flipped.
+        if !self.clock.is_paused() { 
+            return Ok(());
         }
 
         let cycle_time_elapsed = Instant::from(self.clock.now()).elapsed();
 
         if cycle_time_elapsed <= self.get_period_length().into() {
-            return;
+            return Ok(());
         }  
 
-        // state change 
-        self.change_state();
+
+        debug!("Chaning state...");
+        self.change_state(false)?;
+
+        Ok(())
     }
 
     fn toggle_pause(&mut self) {
@@ -169,7 +188,9 @@ impl PolydoroServer {
         }
     }
 
-    fn change_state(&mut self) {
+    fn change_state(&mut self, forced: bool) -> Result<()> {
+        let old_period = self.current_period.clone();
+
         let period_type = if self.current_period != PeriodType::Work {
             self.cycles += 1;
             PeriodType::Work
@@ -183,6 +204,16 @@ impl PolydoroServer {
         // paused = false feels wrong but gets the correct behavior.
         self.clock = PausableClock::new(Duration::ZERO, false);
         self.current_period = period_type;
+
+        if !forced {
+            Notification::new()
+                .summary(&format!("Polydoro: {} Completed", old_period))
+                .body(&format!("Next up: {}", self.current_period))
+                .appname("Polypomo")
+                .show()?;
+        };
+
+        Ok(())
     }
 
     fn get_period_length(&self) -> Duration {
@@ -209,7 +240,10 @@ impl Display for PolydoroServer {
         let time_elapsed = Instant::from(self.clock.now()).elapsed();
         let period_length = self.get_period_length();
 
-        let seconds = (period_length - time_elapsed).as_secs() + 1;
+        let seconds = match period_length.checked_sub(time_elapsed) {
+            Some(t) => t.as_secs() + 1,
+            None => 0,
+        };
 
         write!(f, "{}{} ({})", 
             symbol, 
