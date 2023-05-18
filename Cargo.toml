@@ -1,6 +1,6 @@
 [package]
 name = "polydoro"
-description = "A simple pomodoro timer for polybar"
+description = "A simple pomodoro timer for polybar."
 version = "0.1.0"
 edition = "2021"
 
