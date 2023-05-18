@@ -1,26 +1,15 @@
-use std::{ 
-    time::{Duration, Instant}, 
-    fmt::Display, sync::Arc, 
+use {
+    std::{time::{Duration, Instant}, fmt::Display, sync::Arc},
+    futures::{io::BufReader, AsyncReadExt},
+    log::debug,
+    anyhow::{Result, Error},
+    tokio::{time::sleep, sync::RwLock},
+    pausable_clock::PausableClock,
+    interprocess::local_socket::tokio::{LocalSocketListener, LocalSocketStream},
+    tokio_graceful_shutdown::{SubsystemHandle, Toplevel, errors::GracefulShutdownError},
+    crate::cli::RunArgs,
+    crate::client::{OpCode, opcode_from_byte}
 };
-
-use futures::{io::BufReader, AsyncReadExt};
-
-use log::debug;
-
-use anyhow::Result;
-
-use tokio::{
-    time::sleep,
-    sync::RwLock
-};
-
-use pausable_clock::PausableClock;
-
-use interprocess::local_socket::{tokio::{LocalSocketListener, LocalSocketStream}};
-use tokio_graceful_shutdown::{SubsystemHandle, Toplevel, errors::GracefulShutdownError};
-
-use crate::cli::RunArgs;
-use crate::client::{OpCode, opcode_from_byte};
 
 #[derive(PartialEq)]
 enum PeriodType {
@@ -82,6 +71,33 @@ impl PolydoroServer {
         this: Arc<RwLock<PolydoroServer>>,
     ) -> Result<()> {
         let socket_name = PolydoroServer::build_socket_path(&this.read().await.args.puid);
+
+
+        let drive = async {
+                debug!("Beginning event listener loop...");  
+                              
+                loop {
+                    let incoming: LocalSocketStream = local_socket.accept().await?;
+                    let (reader, _) = incoming.into_split();
+                    let mut buf: [u8; 1] = [99];
+                    let mut reader = BufReader::new(reader);
+                    
+                    // We only need one message, so we consume & discard the stream after reading.
+                    reader.read_exact(&mut buf).await?;
+
+                    debug!("Recieved event: {}", match opcode_from_byte(buf[0]) {
+                        Err(_) => "Unknown opcode",
+                        Ok(OpCode::Skip) => "Skip",
+                        Ok(OpCode::Toggle) => "Toggle"
+                    });
+
+                    match opcode_from_byte(buf[0]) {
+                        Ok(OpCode::Skip) => this.write().await.change_state(),
+                        Ok(OpCode::Toggle) => this.write().await.toggle_pause(),
+                        Err(e) => return Err::<(), Error>(e),
+                }
+            }
+        };
         
 
         tokio::select! {
@@ -91,27 +107,7 @@ impl PolydoroServer {
                 tokio::fs::remove_file(socket_name).await?;
                 debug!("Deleted file socket.");
             },
-            _ = async { 
-                debug!("Beginning event listener loop...");                
-                loop {
-                    let incoming: LocalSocketStream = local_socket.accept().await.unwrap();
-                    let (reader, _) = incoming.into_split();
-                    let mut buf: [u8; 1] = [99];
-                    let mut reader = BufReader::new(reader);
-                    
-                    // We only need one message, so we consume & discard the stream after reading.
-                    reader.read_exact(&mut buf).await.unwrap();
-
-                    debug!("Recieved event: {}", match opcode_from_byte(buf[0]) {
-                        OpCode::Skip => "Skip",
-                        OpCode::Toggle => "Toggle"
-                    });
-
-                    match opcode_from_byte(buf[0]) {
-                        OpCode::Skip => this.write().await.change_state(),
-                        OpCode::Toggle => this.write().await.toggle_pause(),
-                }
-            }} => {
+            _ = drive => {
                 subsys.request_shutdown();
             }
         };

@@ -2,14 +2,15 @@ mod client;
 mod server;
 mod cli;
 
-use tokio;
+use {
+    tokio,
+    clap::Parser,
+    cli::{Invocation, Commands},
+    server::PolydoroServer,
+    client::{send_polydoro_message, OpCode},
+    anyhow::Result
+};
 
-use clap::Parser;
-
-use cli::{Invocation, Commands};
-use server::PolydoroServer;
-use client::{send_polydoro_message, OpCode};
-use anyhow::Result;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -17,9 +18,9 @@ async fn main() -> Result<()> {
 
     let args = Invocation::parse();
 
-    Ok(match args.command {
+    match args.command {
         Commands::Skip { puid } => send_polydoro_message(puid, OpCode::Skip),
         Commands::Toggle { puid } => send_polydoro_message(puid, OpCode::Toggle),
-        Commands::Run(run_args) => PolydoroServer::new(run_args).run().await?,
-    })
+        Commands::Run(run_args) => Ok(PolydoroServer::new(run_args).run().await?),
+    }
 }
