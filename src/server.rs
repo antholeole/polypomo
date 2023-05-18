@@ -1,13 +1,23 @@
-use std::{
-    thread::{self, JoinHandle}, 
+use std::{ 
     time::{Duration, Instant}, 
-    fmt::Display, 
-    sync::{RwLock, Arc}, 
-    io::Read
+    fmt::Display, sync::Arc, 
 };
+
+use futures::{io::BufReader, AsyncReadExt};
+
+use log::debug;
+
+use anyhow::Result;
+
+use tokio::{
+    time::sleep,
+    sync::RwLock
+};
+
 use pausable_clock::PausableClock;
 
-use interprocess::local_socket::LocalSocketListener;
+use interprocess::local_socket::{tokio::{LocalSocketListener, LocalSocketStream}};
+use tokio_graceful_shutdown::{SubsystemHandle, Toplevel, errors::GracefulShutdownError};
 
 use crate::cli::RunArgs;
 use crate::client::{OpCode, opcode_from_byte};
@@ -23,7 +33,6 @@ pub struct PolydoroServer {
     args: RunArgs,
     cycles: i8,
     clock: PausableClock,
-    socket_name: String,
     current_period: PeriodType,
 } 
 
@@ -31,7 +40,6 @@ pub struct PolydoroServer {
 impl PolydoroServer {
     pub fn new(args: RunArgs) -> PolydoroServer {
         PolydoroServer {
-            socket_name: PolydoroServer::build_socket_path(&args.puid),
             args,
             current_period: PeriodType::Work,
             clock: PausableClock::new(Duration::ZERO, false),            
@@ -43,73 +51,103 @@ impl PolydoroServer {
         format!("/tmp/{}", puid)
     }
 
-    pub fn run(self) -> JoinHandle<()> {    
-        let poll_time = Duration::from_millis(self.args.refresh_rate_ms);
-        let socket_name = self.socket_name.clone();
-
+    pub async fn run(self) -> Result<()> {
         let local_socket = LocalSocketListener::bind(
-            format!("/tmp/{}", self.args.puid.clone())
-        ).unwrap();
-        
+            PolydoroServer::build_socket_path(&self.args.puid)
+        )?;
+
         let rw_self = Arc::new(RwLock::new(self));
 
-        let listener_lock = rw_self.clone();
-        let server_lock = rw_self.clone();
+        let rw_self_listener = rw_self.clone();
+        let rw_self_tick = rw_self.clone();
 
-        let should_loop = Arc::new(RwLock::new(true));
+        Toplevel::new()
+        .start("Ticker", move |subsys| PolydoroServer::do_tick(subsys, rw_self_tick.clone()))
+            .start("Event Listener", move |subsys| PolydoroServer::listen_to_requests(subsys, local_socket, rw_self_listener.clone()))
+            .catch_signals()
+            .handle_shutdown_requests(Duration::from_secs(2))
+            .await
+            .map_err(|e: GracefulShutdownError| anyhow::anyhow!(e
+                    .get_subsystem_errors()
+                    .into_iter()
+                    .map(|e| e.to_string())
+                    .collect::<Vec<String>>()
+                    .join(", "))
+                )
+    }
 
-        let listener_should_loop = should_loop.clone();
-        let display_should_loop = should_loop.clone();
-
-
-        ctrlc::set_handler(move ||{
-            let _ = std::fs::remove_file(socket_name.clone());
-            *should_loop.write().unwrap() = false;
-        }).expect("Error setting Ctrl-C handler");
+    async fn listen_to_requests(
+        subsys: SubsystemHandle, 
+        local_socket: LocalSocketListener,
+        this: Arc<RwLock<PolydoroServer>>,
+    ) -> Result<()> {
+        let socket_name = PolydoroServer::build_socket_path(&this.read().await.args.puid);
         
 
-        let _listener_thread = thread::spawn(move || {
-            for incoming in local_socket.incoming() {
-                if !*listener_should_loop.read().unwrap() {
-                    break;
+        tokio::select! {
+            // cleanup the pipe on shutdown
+            _ = subsys.on_shutdown_requested() => {
+                debug!("Attempting to remove file socket...");
+                tokio::fs::remove_file(socket_name).await?;
+                debug!("Deleted file socket.");
+            },
+            _ = async { 
+                debug!("Beginning event listener loop...");                
+                loop {
+                    let incoming: LocalSocketStream = local_socket.accept().await.unwrap();
+                    let (reader, _) = incoming.into_split();
+                    let mut buf: [u8; 1] = [99];
+                    let mut reader = BufReader::new(reader);
+                    
+                    // We only need one message, so we consume & discard the stream after reading.
+                    reader.read_exact(&mut buf).await.unwrap();
+
+                    debug!("Recieved event: {}", match opcode_from_byte(buf[0]) {
+                        OpCode::Skip => "Skip",
+                        OpCode::Toggle => "Toggle"
+                    });
+
+                    match opcode_from_byte(buf[0]) {
+                        OpCode::Skip => this.write().await.change_state(),
+                        OpCode::Toggle => this.write().await.toggle_pause(),
                 }
-
-                let mut buf: [u8; 1] = [99];
-
-                // We only need one message, so we consume & discard the stream after reading.
-                incoming.unwrap().read_exact(&mut buf).unwrap();
-
-                match opcode_from_byte(buf[0]) {
-                    OpCode::Skip => listener_lock.write().unwrap().change_state(),
-                    OpCode::Toggle => listener_lock.write().unwrap().toggle_pause(),
-                }
+            }} => {
+                subsys.request_shutdown();
             }
-        });
-
-        let display_thread = thread::spawn(move || {
-            loop {
-                if !*display_should_loop.read().unwrap() {
-                    break;
-                }
+        };
 
 
-                let start = Instant::now();
+            Ok(())
+    }
+
+    async fn do_tick(        
+        subsys: SubsystemHandle, 
+        this: Arc<RwLock<PolydoroServer>>
+    ) -> Result<()> { 
+        let poll_time = Duration::from_millis(this.read().await.args.refresh_rate_ms);
 
 
-                let runtime = start.elapsed();
-                if let Some(remaining) = poll_time.checked_sub(runtime) {
-                    thread::sleep(remaining);
-                }
+        Ok(tokio::select! {
+            // nothing to cleanup
+            _ = subsys.on_shutdown_requested() => {
+                debug!("Tick loop shutting down.");
+            },
+            _ = async { 
+                debug!("Beginning tick loop...");
 
-                server_lock.write().unwrap().tick();
+                loop {
+                    let start = Instant::now();
+                    let runtime = start.elapsed();
 
-                println!("{}", rw_self.read().unwrap());
-            }
-        });
-
-        // Both threads are expected to start / stop in tandem, so no need to return both
-        // join handlers. SIGINT will stop both.
-        return display_thread;
+                    if let Some(remaining) = poll_time.checked_sub(runtime) {
+                        sleep(remaining).await;
+                    }
+    
+                    this.write().await.tick();
+                    println!("{}", this.read().await);
+                };
+            } => {},
+        }) 
     }
 
     pub fn tick(&mut self) {

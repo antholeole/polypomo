@@ -22,6 +22,10 @@
 
           devShell = pkgs.mkShell {
             nativeBuildInputs = with pkgs; [ rustc cargo ];
+            
+            shellHook = ''
+              export RUST_LOG=debug
+            '';
           };
         }
       );
