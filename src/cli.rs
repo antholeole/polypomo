@@ -69,7 +69,7 @@ pub struct RunArgs {
     /// The length of time spent resting during a regular rest. 
     /// 
     /// This value is set in seconds. Default is 5 minutes (5 * 60).
-    #[arg(long, default_value_t = 3)]
+    #[arg(long, default_value_t = 60 * 5)]
     pub rest_period_s: u16,
 
     /// The length of time spent during a work period. Set in seconds.

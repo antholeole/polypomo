@@ -174,7 +174,7 @@ impl PolydoroServer {
         }  
 
 
-        debug!("Chaning state...");
+        debug!("Changing state...");
         self.change_state(false)?;
 
         Ok(())
