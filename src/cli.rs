@@ -8,7 +8,7 @@ pub struct Invocation {
     pub command: Commands,
 }
 
-const POLYDORO_SOCKET_NAME: &str = "polydoro";
+const POLYDORO_SOCKET_NAME: &str = "/tmp/polydoro";
 
 #[derive(Subcommand)]
 pub enum Commands {
@@ -41,7 +41,9 @@ pub struct RunArgs {
     /// The socket that the polydoro timer runs on. 
     /// 
     /// By default, runs in a socket caled "polydoro". This socket will appear as a file
-    /// in the /tmp/ directory (ex. if left default, /tmp/polydoro). 
+    /// in the directory that it points to (ex. if left default, /tmp/polydoro). 
+    /// This should be an ABSOLUTE PATH, or else the socket will be created in whatever
+    /// dir polydomo is executed from. 
     #[arg(short, long, default_value = POLYDORO_SOCKET_NAME)]
     pub puid: String,
 
@@ -70,7 +72,7 @@ pub struct RunArgs {
     /// 
     /// This value is set in seconds. Default is 5 minutes (5 * 60).
     #[arg(long, default_value_t = 60 * 5)]
-    pub rest_period_s: u16,
+    pub break_period_s: u16,
 
     /// The length of time spent during a work period. Set in seconds.
     /// 
@@ -80,7 +82,7 @@ pub struct RunArgs {
 
     /// The length of time spent during a long break.
     #[arg(long, default_value_t = 60 * 30)]
-    pub break_period_s: u16,
+    pub long_break_period_s: u16,
 
     /// how many cycles before a long break. Defaults to four 
     /// (ex. breaks are: 5, 5, 5, 5, 30, each with a 25 minute work period between.)

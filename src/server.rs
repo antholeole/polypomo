@@ -17,9 +17,9 @@ use {
 
 #[derive(PartialEq, Debug, Clone)]
 enum PeriodType {
-    Rest,
+    Break,
     Work,
-    Break
+    LongBreak
 }
 
 impl fmt::Display for PeriodType {
@@ -46,13 +46,9 @@ impl PolydoroServer {
         }
     }
 
-    pub fn build_socket_path(puid: &str) -> String {
-        format!("/tmp/{}", puid)
-    }
-
     pub async fn run(self) -> Result<()> {
         let local_socket = LocalSocketListener::bind(
-            PolydoroServer::build_socket_path(&self.args.puid)
+            self.args.puid.clone()
         )?;
 
         let rw_self = Arc::new(RwLock::new(self));
@@ -80,7 +76,7 @@ impl PolydoroServer {
         local_socket: LocalSocketListener,
         this: Arc<RwLock<PolydoroServer>>,
     ) -> Result<()> {
-        let socket_name = PolydoroServer::build_socket_path(&this.read().await.args.puid);
+        let socket_name = &this.read().await.args.puid.clone();
 
 
         let drive = async {
@@ -196,9 +192,9 @@ impl PolydoroServer {
             PeriodType::Work
         } else if self.cycles >= self.args.cycles {
             self.cycles = -1;
-            PeriodType::Break
+            PeriodType::LongBreak
         } else {
-            PeriodType::Rest
+            PeriodType::Break
         };
 
         // paused = false feels wrong but gets the correct behavior.
@@ -218,9 +214,9 @@ impl PolydoroServer {
 
     fn get_period_length(&self) -> Duration {
         Duration::from_secs(match self.current_period {
-            PeriodType::Rest => self.args.rest_period_s,
-            PeriodType::Work => self.args.work_period_s,
             PeriodType::Break => self.args.break_period_s,
+            PeriodType::Work => self.args.work_period_s,
+            PeriodType::LongBreak => self.args.long_break_period_s,
         }.into())
     }
 }
@@ -250,6 +246,51 @@ impl Display for PolydoroServer {
             format!("{}:{:02}", seconds / 60, seconds % 60),
             self.cycles + 1
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use pausable_clock::PausableClock;
+
+    use crate::cli::RunArgs;
+
+    use super::*;
+
+    // do not use 
+    fn fake_server(
+        current_cycle: Option<i8>,
+        clock: Option<PausableClock>,
+        period_time: Option<i8>
+    ) -> PolydoroServer {
+        PolydoroServer { 
+            args: RunArgs { 
+                puid: "ASOKDAP".to_string(), 
+                sleeping_icon: " sd ".to_string(), 
+                working_icon: " sd ".to_string(), 
+                paused_icon: " sd ".to_string(), 
+                break_period_s: 1, 
+                work_period_s: 5, 
+                long_break_period_s: 1, 
+                cycles: 3, 
+                refresh_rate_ms: 10 
+            }, 
+            cycles: current_cycle.unwrap_or(0), 
+            clock: clock.unwrap_or(PausableClock::default()), 
+            current_period: PeriodType::LongBreak 
+        }
+    } 
+
+    //tick, pause, change_state
+    #[test]
+    fn tick_should_ok_if_paused() {
+        let mut server_with_paused_clock = fake_server(
+            None, 
+            Some(PausableClock::new(Duration::ZERO, false)),
+            None
+        );
+
+        assert!(server_with_paused_clock.tick().is_ok());
     }
 }
 
