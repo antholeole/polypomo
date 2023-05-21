@@ -94,5 +94,12 @@ pub struct RunArgs {
     ///  Defaults to 500ms. To minimize "time skip" effects, set a number that multiples well into
     /// 1. (500, 250, 100, 50, etc.). This way, there won't be longer periods of non-updating.
     #[arg(long, default_value_t = 500)]
-    pub refresh_rate_ms: u64, 
+    pub refresh_rate_ms: u64,
+
+    /// If the output of the timer should be red when paused.
+    /// 
+    /// This is useful in cases where you might not realize polydoro is not running. Red helps 
+    /// stand out.
+    #[arg(long, default_value_t = true)]
+    pub should_color_pause: bool, 
 }

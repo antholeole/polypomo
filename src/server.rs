@@ -225,7 +225,9 @@ impl PolydoroServer {
 impl Display for PolydoroServer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // paused seems to be inverted in this package.
+        let mut is_paused = false;
         let symbol = if !self.clock.is_paused() {
+            is_paused = true;
             &self.args.paused_icon
         } else if self.current_period == PeriodType::Work {
             &self.args.working_icon
@@ -241,11 +243,18 @@ impl Display for PolydoroServer {
             None => 0,
         };
 
-        write!(f, "{}{} ({})", 
+        let output_raw = format!("{}{} ({})", 
             symbol, 
             format!("{}:{:02}", seconds / 60, seconds % 60),
             self.cycles + 1
-        )
+        );
+
+        write!(f, "{}", if is_paused && self.args.should_color_pause {
+            format!("%{{F#880808}}{}%{{F-}}", output_raw)
+        } else {
+            output_raw  
+        })
+
     }
 }
 
