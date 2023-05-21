@@ -274,6 +274,7 @@ mod tests {
     ) -> PolydoroServer {
         PolydoroServer { 
             args: RunArgs { 
+                should_color_pause: true,
                 puid: "ASOKDAP".to_string(), 
                 sleeping_icon: " sd ".to_string(), 
                 working_icon: " sd ".to_string(), 
