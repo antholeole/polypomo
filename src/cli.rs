@@ -8,7 +8,7 @@ pub struct Invocation {
     pub command: Commands,
 }
 
-const POLYDORO_SOCKET_NAME: &str = "/tmp/polydoro";
+const POLYDORO_SOCKET_NAME: &str = "polydoro.sock";
 
 #[derive(Subcommand)]
 pub enum Commands {
@@ -37,15 +37,26 @@ pub enum Commands {
 
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
+#[cfg_attr(test, derive(derive_builder::Builder, Default, Clone))]
+#[cfg_attr(test, builder(default))]
 pub struct RunArgs {
     /// The socket that the polydoro timer runs on. 
     /// 
     /// By default, runs in a socket caled "polydoro". This socket will appear as a file
-    /// in the directory that it points to (ex. if left default, /tmp/polydoro). 
-    /// This should be an ABSOLUTE PATH, or else the socket will be created in whatever
-    /// dir polydomo is executed from. 
+    /// in the directory that it points to (ex. if left default, XDG_DATA_DIR/polydoro.sock). 
+    /// If the path is not absolute, it will be created in the data directory specified by the system.
+    /// If a socket already exists and the force flag is toggeled, the file will override. See [RunArgs.force]
+    /// for more details.
     #[arg(short, long, default_value = POLYDORO_SOCKET_NAME)]
     pub puid: String,
+
+    /// If this process should delete an existing socket. Helpful for situations where the previous 
+    /// run of polydoro may not end gracefully and the socket was not cleaned up properly. 
+    /// 
+    /// Setting this flag may corrupt a previous-but-still-running Polydoro process. 
+    #[arg(short, default_value_t = false)]
+    #[cfg_attr(test, builder(default = "false"))]
+    pub force: bool,
 
     /// the icon that is displayed when currently resting. 
     /// 

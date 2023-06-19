@@ -10,8 +10,13 @@ anyhow = "1.0.71"
 clap = { version = "4.2.4", features = ["derive"] }
 env_logger = "0.10.0"
 futures = "0.3.28"
+etcetera = "0.8.0"
 interprocess = { version = "1.2.1", features = ["tokio_support"] }
 log = "0.4.17"
 pausable_clock = "1.0.1"
 tokio = { version = "1.28.1", features = ["macros", "rt-multi-thread", "sync", "fs"] }
 tokio-graceful-shutdown = "0.12.1"
+
+[dev-dependencies]
+rand = "0.8.5"
+derive_builder = "0.12.0"

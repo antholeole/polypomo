@@ -1,5 +1,7 @@
-use std::fmt;
+use std::{fmt, path::Path, fs::remove_file};
 
+use anyhow::anyhow;
+use etcetera::BaseStrategy;
 use notify_rust::Notification;
 
 use {
@@ -28,12 +30,38 @@ impl fmt::Display for PeriodType {
     }
 }
 
+#[cfg_attr(test, derive(derive_builder::Builder))]
+#[cfg_attr(test, builder(pattern = "owned", default))]
 pub struct PolydoroServer {
     args: RunArgs,
     cycles: i8,
     clock: PausableClock,
+
+    #[cfg_attr(test, builder(private))]
     current_period: PeriodType,
 } 
+
+impl Default for PolydoroServer {
+    fn default() -> Self { 
+        PolydoroServer { 
+            args: RunArgs { 
+                force: false,
+                puid: "/tmp/FAKE_SOCK.sock".to_owned(), 
+                sleeping_icon: " sd ".to_string(), 
+                working_icon: " sd ".to_string(), 
+                paused_icon: " sd ".to_string(), 
+                break_period_s: 1, 
+                work_period_s: 5, 
+                long_break_period_s: 1, 
+                cycles: 3, 
+                refresh_rate_ms: 10 
+            }, 
+            cycles: 0, 
+            clock: PausableClock::default(), 
+            current_period: PeriodType::LongBreak 
+        }       
+    }
+}
 
 
 impl PolydoroServer {
@@ -46,10 +74,34 @@ impl PolydoroServer {
         }
     }
 
+    fn establish_socket(&self) -> Result<LocalSocketListener> {
+        let mut path = Path::new(&self.args.puid).to_owned();
+
+        if !path.is_absolute() {
+            path = etcetera::choose_base_strategy()
+                .map_err(|e| anyhow::anyhow!("Path is non-absolute, and no data dir could be found: {}", e))?
+                .data_dir()                
+                .join(path);
+        };
+
+        if path.try_exists()? {
+            debug!("socket on {} already exists", path.display());
+
+            if self.args.force {
+                debug!("force deleting socket {}", path.display());
+                remove_file(path.clone())?;
+            } else {
+                return Err(anyhow!("Socket {} already exists, but force flag was not set.", path.display()));
+            }
+        };
+
+        debug!("established socket on {}", path.display());
+        Ok(LocalSocketListener::bind(path)?)
+    }
+
     pub async fn run(self) -> Result<()> {
-        let local_socket = LocalSocketListener::bind(
-            self.args.puid.clone()
-        )?;
+        let local_socket = self.establish_socket()?;
+
 
         let rw_self = Arc::new(RwLock::new(self));
 
@@ -251,44 +303,137 @@ impl Display for PolydoroServer {
 
 #[cfg(test)]
 mod tests {
-    use pausable_clock::PausableClock;
+    use std::env::{set_var, remove_var};
 
-    use crate::cli::RunArgs;
+    use rand::distributions::{Alphanumeric, DistString};
+    use pausable_clock::PausableClock;
+    use tokio::fs::try_exists;
+
+    use crate::cli::RunArgsBuilder;
 
     use super::*;
 
-    // do not use 
-    fn fake_server(
-        current_cycle: Option<i8>,
-        clock: Option<PausableClock>,
-    ) -> PolydoroServer {
-        PolydoroServer { 
-            args: RunArgs { 
-                puid: "ASOKDAP".to_string(), 
-                sleeping_icon: " sd ".to_string(), 
-                working_icon: " sd ".to_string(), 
-                paused_icon: " sd ".to_string(), 
-                break_period_s: 1, 
-                work_period_s: 5, 
-                long_break_period_s: 1, 
-                cycles: 3, 
-                refresh_rate_ms: 10 
-            }, 
-            cycles: current_cycle.unwrap_or(0), 
-            clock: clock.unwrap_or(PausableClock::default()), 
-            current_period: PeriodType::LongBreak 
-        }
-    } 
 
-    //tick, pause, change_state
+    struct FileCleanup {
+        file: String
+    }
+
+    impl Drop for FileCleanup {
+        fn drop(&mut self) {
+            remove_file(self.file.clone()).unwrap();
+        }
+    }
+
     #[test]
     fn tick_should_ok_if_paused() {
-        let mut server_with_paused_clock = fake_server(
-            None, 
-            Some(PausableClock::new(Duration::ZERO, false)),
+        let mut server_with_paused_clock = PolydoroServerBuilder::default()
+            .clock(PausableClock::new(Duration::ZERO, false))
+            .build()
+            .unwrap();
+        
+        assert!(server_with_paused_clock.tick().is_ok());
+    }
+
+    #[tokio::test]
+    // 
+    async fn should_not_override_existing_socket_without_force_flag() {
+        let random_sock: String = format!("/tmp/{}.sock", 
+            Alphanumeric.sample_string(&mut rand::thread_rng(), 16)
         );
 
-        assert!(server_with_paused_clock.tick().is_ok());
+        let _cleaup = FileCleanup {
+            file: random_sock.clone()
+        };
+
+        let server = PolydoroServerBuilder::default()
+            .args(
+                RunArgsBuilder::default()
+                    .puid(random_sock.clone())
+                    .build()
+                    .unwrap()
+            )
+            .build()
+            .unwrap();
+
+        server.establish_socket().expect("should establish connection");
+        server.establish_socket().expect_err("should not be able to establish connection (socket held)");
+    }
+
+    #[tokio::test]
+    async fn should_override_existing_socket_with_force_flag() {
+        let random_sock: String = format!("/tmp/{}.sock", 
+            Alphanumeric.sample_string(&mut rand::thread_rng(), 16)
+        );
+
+        let _cleaup = FileCleanup {
+            file: random_sock.clone()
+        };
+
+        let server = PolydoroServerBuilder::default()
+            .args(
+                RunArgsBuilder::default()
+                    .puid(random_sock.clone())
+                    .force(true)
+                    .build()
+                    .unwrap()
+            )
+            .build()
+            .unwrap();
+
+        server.establish_socket().expect("should establish connection");
+        server.establish_socket().expect("should override previous connection");
+    }
+
+    #[tokio::test]
+    async fn should_use_xdg_data_home() {
+        let random_sock: String = format!("{}.sock", 
+            Alphanumeric.sample_string(&mut rand::thread_rng(), 16)
+        );
+
+        set_var("XDG_DATA_HOME", "/tmp/");
+    
+        let _cleaup = FileCleanup {
+            file: format!("/tmp/{}", random_sock.clone())
+        };
+
+        let server = PolydoroServerBuilder::default()
+            .args(
+                RunArgsBuilder::default()
+                    .puid(random_sock.clone())
+                    .build()
+                    .unwrap()
+            )
+            .build()
+            .unwrap();
+
+        server.establish_socket().expect("should establish connection");
+        try_exists(format!("/tmp/{}", random_sock)).await.expect("should have used XDG_DATA_DIR");
+    }
+
+    #[tokio::test]
+    async fn should_use_absolute_path() {
+        let random_sock: String = format!("/tmp/{}.sock", 
+            Alphanumeric.sample_string(&mut rand::thread_rng(), 16)
+        );
+
+        remove_var("XDG_DATA_HOME");
+
+        let _cleaup = FileCleanup {
+            file: random_sock.clone()
+        };
+
+        let server = PolydoroServerBuilder::default()
+            .args(
+                RunArgsBuilder::default()
+                    .puid(random_sock.clone())
+                    .build()
+                    .unwrap()
+            )
+            .build()
+            .unwrap();
+
+        server.establish_socket().expect("should establish connection");
+        try_exists(random_sock).await.expect("should have used XDG_DATA_DIR");
     }
 }
 
