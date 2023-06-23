@@ -1,3 +1,5 @@
+use crate::server::PolydoroServer;
+
 use {
     std::io::Write,
     interprocess::local_socket::LocalSocketStream,
@@ -20,7 +22,9 @@ pub fn opcode_from_byte(byte: u8) -> Result<OpCode> {
 }
 
 pub fn send_polydoro_message(polydoro_puid: String, opcode: OpCode) -> Result<()> {
-    let mut stream = LocalSocketStream::connect(polydoro_puid)?;
+    let mut stream = LocalSocketStream::connect(
+        PolydoroServer::build_socket_path(polydoro_puid)?
+    )?;
     let buf: [u8; 1] = [opcode as u8]; 
     stream.write(&buf)?;
 

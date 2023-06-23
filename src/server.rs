@@ -1,4 +1,4 @@
-use std::{fmt, path::Path, fs::remove_file};
+use std::{fmt, path::{Path, PathBuf}, fs::remove_file};
 
 use anyhow::anyhow;
 use etcetera::BaseStrategy;
@@ -74,15 +74,22 @@ impl PolydoroServer {
         }
     }
 
-    fn establish_socket(&self) -> Result<LocalSocketListener> {
-        let mut path = Path::new(&self.args.puid).to_owned();
+    pub fn build_socket_path(puid: String) -> Result<PathBuf> {
+        let mut path = Path::new(&puid).to_owned();
 
         if !path.is_absolute() {
             path = etcetera::choose_base_strategy()
                 .map_err(|e| anyhow::anyhow!("Path is non-absolute, and no data dir could be found: {}", e))?
                 .data_dir()                
                 .join(path);
-        };
+        };        
+
+        Ok(path)
+    }
+
+
+    fn establish_socket(&self) -> Result<LocalSocketListener> {
+       let path = PolydoroServer::build_socket_path(self.args.puid.clone())?;
 
         if path.try_exists()? {
             debug!("socket on {} already exists", path.display());
